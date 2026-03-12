@@ -1,0 +1,75 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "A user of the platform.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "description": "Firebase Auth UID" },
+        "displayName": { "type": "string" },
+        "email": { "type": "string" },
+        "photoURL": { "type": "string" },
+        "role": { "type": "string", "enum": ["user", "admin"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "displayName", "email", "role", "createdAt"]
+    },
+    "Session": {
+      "title": "Session",
+      "description": "A board game, mahjong, or social session created by a host.",
+      "type": "object",
+      "properties": {
+        "host_uid": { "type": "string", "description": "UID of the host who created the session" },
+        "host_name": { "type": "string" },
+        "host_whatsapp": { "type": "string" },
+        "game_name": { "type": "string" },
+        "event_type": { "type": "string", "enum": ["boardgame", "mahjong", "social"] },
+        "dates_available": { 
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "location": { "type": "string" },
+        "player_count_preference": { "type": "string" },
+        "min_players": { "type": "number" },
+        "max_players": { "type": "number" },
+        "rules": { "type": "string" },
+        "purpose": { "type": "string" },
+        "content": { "type": "string" },
+        "game_source": { "type": "string" },
+        "booking_code": { "type": "string", "description": "Secret code required to join" },
+        "created_at": { "type": "string", "format": "date-time" }
+      },
+      "required": ["host_uid", "host_name", "host_whatsapp", "game_name", "event_type", "dates_available", "location", "player_count_preference", "min_players", "max_players", "game_source", "booking_code", "created_at"]
+    },
+    "Response": {
+      "title": "Response",
+      "description": "A participant joining a session.",
+      "type": "object",
+      "properties": {
+        "session_id": { "type": "string" },
+        "participant_uid": { "type": "string", "description": "UID of the participant" },
+        "player_name": { "type": "string" },
+        "dates_available": { 
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "created_at": { "type": "string", "format": "date-time" }
+      },
+      "required": ["session_id", "participant_uid", "player_name", "dates_available", "created_at"]
+    }
+  },
+  "firestore": {
+    "users/{userId}": {
+      "schema": { "$ref": "#/entities/User" },
+      "description": "Stores user profiles."
+    },
+    "sessions/{sessionId}": {
+      "schema": { "$ref": "#/entities/Session" },
+      "description": "Stores all sessions."
+    },
+    "responses/{responseId}": {
+      "schema": { "$ref": "#/entities/Response" },
+      "description": "Stores responses (participants) for a specific session."
+    }
+  }
+}

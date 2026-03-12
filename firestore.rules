@@ -1,0 +1,148 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: users
+    // Document ID: {userId}
+    // Fields:
+    //   - uid: string (required) - Firebase Auth UID
+    //   - displayName: string (required)
+    //   - email: string (required)
+    //   - photoURL: string (optional)
+    //   - role: string (required, enum: ["user", "admin"])
+    //   - createdAt: string (required, format: date-time)
+    //
+    // Collection: sessions
+    // Document ID: {sessionId}
+    // Fields:
+    //   - host_uid: string (required) - UID of the host who created the session
+    //   - host_name: string (required)
+    //   - host_whatsapp: string (required)
+    //   - game_name: string (required)
+    //   - event_type: string (required, enum: ["boardgame", "mahjong", "social"])
+    //   - dates_available: array of strings (required)
+    //   - location: string (required)
+    //   - player_count_preference: string (required)
+    //   - min_players: number (required)
+    //   - max_players: number (required)
+    //   - rules: string (optional)
+    //   - purpose: string (optional)
+    //   - content: string (optional)
+    //   - game_source: string (required)
+    //   - booking_code: string (required) - Secret code required to join
+    //   - created_at: string (required, format: date-time)
+    //
+    // Collection: responses
+    // Document ID: {responseId}
+    // Fields:
+    //   - session_id: string (required)
+    //   - participant_uid: string (required) - UID of the participant
+    //   - player_name: string (required)
+    //   - dates_available: array of strings (required)
+    //   - created_at: string (required, format: date-time)
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    
+    // Check if the user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    // Check if user owns the resource (for user-owned documents)
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() &&
+        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
+          (request.auth.token.email == "chikeeokay@gmail.com" && request.auth.token.email_verified == true)); // Default admin
+    }
+
+    // Validate required fields exist
+    function hasRequiredFields(fields) {
+      return request.resource.data.keys().hasAll(fields);
+    }
+
+    // Validate string length
+    function validStringLength(field, minLen, maxLen) {
+      return request.resource.data[field] is string &&
+        request.resource.data[field].size() >= minLen &&
+        request.resource.data[field].size() <= maxLen;
+    }
+
+    // Validate ISO 8601 date string format (YYYY-MM-DDTHH:MM:SS)
+    function isValidDateString(dateStr) {
+      return dateStr is string &&
+        dateStr.matches("^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}.*Z?$");
+    }
+
+    function isValidUser(data) {
+      return hasRequiredFields(['uid', 'displayName', 'email', 'role', 'createdAt']) &&
+             data.uid is string && data.uid.size() > 0 &&
+             data.displayName is string && data.displayName.size() > 0 && data.displayName.size() < 100 &&
+             data.email is string && data.email.size() > 0 && data.email.size() < 100 &&
+             data.role in ['user', 'admin'] &&
+             (!('photoURL' in data) || (data.photoURL is string && data.photoURL.size() < 500)) &&
+             isValidDateString(data.createdAt);
+    }
+
+    function isValidSession(data) {
+      return hasRequiredFields(['host_uid', 'host_name', 'host_whatsapp', 'game_name', 'event_type', 'dates_available', 'location', 'player_count_preference', 'min_players', 'max_players', 'game_source', 'booking_code', 'created_at']) &&
+             data.host_uid is string && data.host_uid.size() > 0 &&
+             data.host_name is string && data.host_name.size() > 0 && data.host_name.size() < 100 &&
+             data.host_whatsapp is string && data.host_whatsapp.size() < 100 &&
+             data.game_name is string && data.game_name.size() < 100 &&
+             data.event_type in ['boardgame', 'mahjong', 'social'] &&
+             data.dates_available is list && data.dates_available.size() > 0 && data.dates_available.size() < 50 &&
+             data.location is string && data.location.size() < 200 &&
+             data.player_count_preference is string && data.player_count_preference.size() < 50 &&
+             data.min_players is number && data.min_players >= 0 &&
+             data.max_players is number && data.max_players >= 0 &&
+             data.game_source is string && data.game_source.size() < 100 &&
+             data.booking_code is string && data.booking_code.size() < 50 &&
+             (!('rules' in data) || (data.rules is string && data.rules.size() < 5000)) &&
+             (!('purpose' in data) || (data.purpose is string && data.purpose.size() < 5000)) &&
+             (!('content' in data) || (data.content is string && data.content.size() < 5000)) &&
+             isValidDateString(data.created_at);
+    }
+
+    function isValidResponse(data) {
+      return hasRequiredFields(['session_id', 'participant_uid', 'player_name', 'dates_available', 'created_at']) &&
+             data.session_id is string && data.session_id.size() > 0 &&
+             data.participant_uid is string && data.participant_uid.size() > 0 &&
+             data.player_name is string && data.player_name.size() > 0 && data.player_name.size() < 100 &&
+             data.dates_available is list && data.dates_available.size() > 0 && data.dates_available.size() < 50 &&
+             isValidDateString(data.created_at);
+    }
+
+    match /users/{userId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && isValidUser(request.resource.data) && ((isOwner(userId) && request.resource.data.role == 'user') || isAdmin());
+      allow update: if isAuthenticated() && isValidUser(request.resource.data) && ((isOwner(userId) && request.resource.data.role == resource.data.role) || isAdmin());
+      allow delete: if isAdmin();
+    }
+
+    match /sessions/{sessionId} {
+      allow read: if true; // Publicly readable
+      allow create: if isAuthenticated() && isValidSession(request.resource.data) && request.resource.data.host_uid == request.auth.uid;
+      allow update: if isAuthenticated() && isValidSession(request.resource.data) && (resource.data.host_uid == request.auth.uid || isAdmin());
+      allow delete: if isAuthenticated() && (resource.data.host_uid == request.auth.uid || isAdmin());
+    }
+
+    match /responses/{responseId} {
+      allow read: if true; // Publicly readable
+      allow create: if isAuthenticated() && isValidResponse(request.resource.data) && request.resource.data.participant_uid == request.auth.uid;
+      allow update: if isAuthenticated() && isValidResponse(request.resource.data) && (resource.data.participant_uid == request.auth.uid || isAdmin());
+      allow delete: if isAuthenticated() && (resource.data.participant_uid == request.auth.uid || isAdmin() || get(/databases/$(database)/documents/sessions/$(resource.data.session_id)).data.host_uid == request.auth.uid);
+    }
+  }
+}
