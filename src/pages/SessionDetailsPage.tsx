@@ -191,6 +191,23 @@ export default function SessionDetailsPage() {
 
     setIsSubmitting(true);
     setSubmitError("");
+
+    // Check for overlapping dates across all user's previous responses in this session
+    const userPreviousDates = new Set<string>();
+    session?.responses.forEach(r => {
+      if (r.participant_uid === user.uid) {
+        r.dates_available.forEach(d => userPreviousDates.add(d));
+      }
+    });
+
+    const overlappingDates = Array.from(selectedDates).filter(d => userPreviousDates.has(d));
+    if (overlappingDates.length > 0) {
+      const formattedOverlap = overlappingDates.map(d => format(parseISO(d.split('~')[0]), "M月d日")).join(", ");
+      setSubmitError(`你已經報名過以下時段：${formattedOverlap}，請取消勾選後再送出。`);
+      setIsSubmitting(false);
+      return;
+    }
+
     try {
       await addDoc(collection(db, "responses"), {
         session_id: id,
@@ -447,13 +464,15 @@ export default function SessionDetailsPage() {
                         <div key={response.id} className="flex justify-between items-center group">
                           <div className="flex items-center gap-1 min-w-0">
                             <span className="text-base font-bold text-stone-700 truncate">{response.player_name}</span>
-                            <button
-                              onClick={() => setResponseToDelete({ id: response.id, name: response.player_name })}
-                              className="text-stone-300 hover:text-rose-600 transition-colors p-0.5 hover:bg-rose-100 rounded shrink-0"
-                              title="刪除參加者"
-                            >
-                              <Trash2 className="w-3 h-3" />
-                            </button>
+                            {(user?.uid === response.participant_uid || user?.uid === session.host_uid || isAdmin) && (
+                              <button
+                                onClick={() => setResponseToDelete({ id: response.id, name: response.player_name })}
+                                className="text-rose-500 hover:text-rose-700 transition-colors p-1 hover:bg-rose-100 rounded-lg border-2 border-transparent hover:border-rose-200 shrink-0"
+                                title="刪除參加者"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            )}
                           </div>
                           <div className={cn(
                             "w-5 h-5 rounded-md border-2 border-black flex items-center justify-center shrink-0 relative",
@@ -577,13 +596,15 @@ export default function SessionDetailsPage() {
                       <td className="p-1 sm:p-1.5 text-stone-800 font-bold text-sm sm:text-base border-r-4 border-black relative">
                         <div className="flex items-center justify-between">
                           <span>{response.player_name}</span>
-                          <button
-                            onClick={() => setResponseToDelete({ id: response.id, name: response.player_name })}
-                            className="text-stone-300 hover:text-rose-600 transition-colors p-1 hover:bg-rose-100 rounded"
-                            title="刪除參加者"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
+                          {(user?.uid === response.participant_uid || user?.uid === session.host_uid || isAdmin) && (
+                            <button
+                              onClick={() => setResponseToDelete({ id: response.id, name: response.player_name })}
+                              className="text-rose-500 hover:text-rose-700 transition-colors p-1.5 hover:bg-rose-100 rounded-xl border-2 border-transparent hover:border-rose-200"
+                              title="刪除參加者"
+                            >
+                              <Trash2 className="w-4 h-4 sm:w-5 sm:h-5" />
+                            </button>
+                          )}
                         </div>
                       </td>
                       {session.dates_available.map((date) => {
@@ -667,6 +688,67 @@ export default function SessionDetailsPage() {
               </table>
             </div>
           </div>
+
+          {/* Action Buttons Section - Moved here under the table */}
+          <div className="flex flex-col gap-4 mt-6">
+            {/* Host Management Section */}
+            {user?.uid === session.host_uid && session.responses.length > 0 && (
+              <div className="brutal-card p-4 sm:p-5 bg-rose-50 border-4 border-black rounded-[24px]">
+                <h3 className="text-lg sm:text-xl font-black text-stone-900 mb-3 flex items-center gap-2">
+                  <Trash2 className="w-5 h-5 text-rose-600" />
+                  管理所有參加者 (Host Only)
+                </h3>
+                <div className="grid grid-cols-1 gap-2">
+                  {session.responses.map((r) => (
+                    <div key={r.id} className="flex items-center justify-between p-2 bg-white border-4 border-black rounded-xl shadow-[3px_3px_0_0_rgba(0,0,0,1)]">
+                      <span className="font-black text-base">{r.player_name}</span>
+                      <button
+                        onClick={() => setResponseToDelete({ id: r.id, name: r.player_name })}
+                        className="brutal-btn bg-rose-500 hover:bg-rose-600 text-white px-3 py-1 text-xs"
+                      >
+                        移除此人
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="flex flex-col sm:flex-row gap-3">
+              <Link
+                to="/"
+                className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-white hover:bg-stone-50 text-black text-base font-black border-4 border-black rounded-2xl shadow-[4px_4px_0_0_rgba(0,0,0,1)] transition-transform hover:-translate-y-1 hover:shadow-[6px_6px_0_0_rgba(0,0,0,1)]"
+              >
+                <LogIn className="w-5 h-5 rotate-180" />
+                <span>返回首頁</span>
+              </Link>
+
+              {user && session.responses.some(r => r.participant_uid === user.uid) && (
+                <button
+                  onClick={() => {
+                    const myResponse = session.responses.find(r => r.participant_uid === user.uid);
+                    if (myResponse) {
+                      setResponseToDelete({ id: myResponse.id, name: myResponse.player_name });
+                    }
+                  }}
+                  className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-rose-500 hover:bg-rose-600 text-white text-base font-black border-4 border-black rounded-2xl shadow-[4px_4px_0_0_rgba(0,0,0,1)] transition-transform hover:-translate-y-1 hover:shadow-[6px_6px_0_0_rgba(0,0,0,1)]"
+                >
+                  <Trash2 className="w-5 h-5" />
+                  <span>取消我的報名 (Delete My Registration)</span>
+                </button>
+              )}
+
+              {user?.uid === session.host_uid && (
+                <button
+                  onClick={() => setShowDeleteConfirm(true)}
+                  className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-stone-900 hover:bg-black text-white text-base font-black border-4 border-black rounded-2xl shadow-[4px_4px_0_0_rgba(0,0,0,1)] transition-transform hover:-translate-y-1 hover:shadow-[6px_6px_0_0_rgba(0,0,0,1)]"
+                >
+                  <Trash2 className="w-5 h-5" />
+                  <span>刪除整個約局 (Delete Session)</span>
+                </button>
+              )}
+            </div>
+          </div>
         </div>
 
         {/* Add Response Form */}
@@ -690,6 +772,11 @@ export default function SessionDetailsPage() {
               </div>
             ) : (
               <form onSubmit={handleSubmitResponse} className="space-y-2">
+                {session.responses.some(r => r.participant_uid === user.uid) && (
+                  <div className="bg-blue-50 border-2 border-blue-200 p-2 rounded-xl text-xs font-bold text-blue-700 mb-2">
+                    💡 你已報名過此約局，可以繼續報名其他「未選擇過」的時段。
+                  </div>
+                )}
               <div>
                 <label
                   htmlFor="playerName"
@@ -749,46 +836,59 @@ export default function SessionDetailsPage() {
                 <div className="space-y-1.5">
                   {session.dates_available.map((date) => {
                     const isFull = availabilityCounts[date] + 1 >= session.max_players;
+                    const isAlreadyRegisteredByMe = session.responses.some(r => r.participant_uid === user.uid && r.dates_available.includes(date));
                     const [startStr, endStr] = date.split('~');
+                    
                     return (
                     <label
                       key={date}
                       className={cn(
-                        "flex items-center p-2.5 border-4 rounded-2xl cursor-pointer transition-all",
-                        selectedDates.has(date)
-                          ? "border-black bg-orange-300 shadow-[4px_4px_0_0_rgba(0,0,0,1)] -translate-y-0.5"
-                          : "border-black bg-white hover:bg-stone-50 hover:shadow-[4px_4px_0_0_rgba(0,0,0,1)] hover:-translate-y-0.5",
+                        "flex items-center p-2.5 border-4 rounded-2xl transition-all",
+                        isAlreadyRegisteredByMe 
+                          ? "opacity-60 bg-stone-100 border-stone-300 cursor-not-allowed"
+                          : selectedDates.has(date)
+                            ? "border-black bg-orange-300 shadow-[4px_4px_0_0_rgba(0,0,0,1)] -translate-y-0.5 cursor-pointer"
+                            : "border-black bg-white hover:bg-stone-50 hover:shadow-[4px_4px_0_0_rgba(0,0,0,1)] hover:-translate-y-0.5 cursor-pointer",
                       )}
                     >
                       <input
                         type="checkbox"
                         className="sr-only"
                         checked={selectedDates.has(date)}
-                        onChange={() => toggleDateSelection(date)}
+                        onChange={() => !isAlreadyRegisteredByMe && toggleDateSelection(date)}
+                        disabled={isAlreadyRegisteredByMe}
                       />
                       <div
                         className={cn(
                           "w-6 h-6 rounded-md border-2 flex items-center justify-center mr-3 transition-colors shrink-0",
-                          selectedDates.has(date)
-                            ? "bg-black border-black"
-                            : "border-black bg-white",
+                          isAlreadyRegisteredByMe
+                            ? "bg-stone-300 border-stone-400"
+                            : selectedDates.has(date)
+                              ? "bg-black border-black"
+                              : "border-black bg-white",
                         )}
                       >
                         {selectedDates.has(date) && (
                           <Check className="w-4 h-4 text-white stroke-[3]" />
+                        )}
+                        {isAlreadyRegisteredByMe && (
+                          <Check className="w-4 h-4 text-stone-500 stroke-[3]" />
                         )}
                       </div>
                       <div className="flex flex-col">
                         <span
                           className={cn(
                             "text-base font-black leading-tight",
-                            selectedDates.has(date)
-                              ? "text-black"
-                              : "text-stone-900",
+                            isAlreadyRegisteredByMe ? "text-stone-400" : selectedDates.has(date) ? "text-black" : "text-stone-900",
                           )}
                         >
                           {format(parseISO(startStr), "M月d日", { locale: zhTW })}
-                          {isFull && (
+                          {isAlreadyRegisteredByMe && (
+                            <span className="ml-2 text-[10px] bg-stone-200 text-stone-600 px-1.5 py-0.5 rounded border-2 border-stone-300 align-middle">
+                              你已報名此時段
+                            </span>
+                          )}
+                          {!isAlreadyRegisteredByMe && isFull && (
                             <span className="ml-2 text-[10px] bg-amber-300 text-black px-1.5 py-0.5 rounded border-2 border-black shadow-[1px_1px_0_0_rgba(0,0,0,1)] align-middle">
                               waiting list
                             </span>
@@ -797,9 +897,7 @@ export default function SessionDetailsPage() {
                         <span
                           className={cn(
                             "text-sm font-bold",
-                            selectedDates.has(date)
-                              ? "text-black/80"
-                              : "text-stone-500",
+                            isAlreadyRegisteredByMe ? "text-stone-400" : selectedDates.has(date) ? "text-black/80" : "text-stone-500",
                           )}
                         >
                           {format(parseISO(startStr), "HHmm")}
@@ -835,18 +933,7 @@ export default function SessionDetailsPage() {
         </div>
       </div>
 
-      {user?.uid === session.host_uid && (
-        <div className="flex justify-center mt-12">
-          <button
-            onClick={() => setShowDeleteConfirm(true)}
-            className="flex items-center justify-center gap-2 px-6 py-3 bg-rose-400 hover:bg-rose-500 text-black text-base font-bold border-4 border-black rounded-2xl shadow-[4px_4px_0_0_rgba(0,0,0,1)] transition-transform hover:-translate-y-1 hover:shadow-[6px_6px_0_0_rgba(0,0,0,1)]"
-          >
-            <Trash2 className="w-5 h-5" />
-            <span>刪除約局 (Host Only)</span>
-          </button>
-        </div>
-      )}
-
+      {/* Modals */}
       {showDeleteConfirm && (
         <div className="fixed inset-0 bg-stone-900/50 flex items-center justify-center z-[100] px-4 backdrop-blur-sm">
           <div className="brutal-card p-6 w-full max-w-sm bg-white">
