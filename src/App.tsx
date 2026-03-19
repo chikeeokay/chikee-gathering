@@ -80,6 +80,13 @@ function Layout({ children }: { children: React.ReactNode }) {
             </div>
           </Link>
           <nav className="flex items-center justify-end gap-1 sm:gap-3 shrink-0">
+            <Link 
+              to="/" 
+              className="flex items-center gap-0.5 px-2 sm:px-3 py-1 bg-white hover:bg-stone-100 border-2 border-black shadow-[2px_2px_0_0_rgba(0,0,0,1)] hover:translate-y-[2px] hover:shadow-none transition-all rounded-lg font-bold text-xs sm:text-xl shrink-0"
+              title="回到首頁"
+            >
+              <span>回到首頁</span>
+            </Link>
             {!loading && (
               user ? (
                 <div className="flex items-center gap-1 sm:gap-2">

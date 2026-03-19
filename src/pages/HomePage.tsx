@@ -1,8 +1,9 @@
 import React, { useEffect, useState, useContext } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { Users, Calendar, Clock, ChevronRight, Package, Trash2, MapPin, Info, Target, FileText, MessageCircle } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { zhTW } from "date-fns/locale";
+import { clsx } from "clsx";
 import { Session, Response } from "../types";
 import { AdminContext } from "../App";
 import { db, auth } from "../firebase";
@@ -35,8 +36,31 @@ export default function HomePage() {
   const [responses, setResponses] = useState<Response[]>([]);
   const [loading, setLoading] = useState(true);
   const [sessionToDelete, setSessionToDelete] = useState<string | null>(null);
-  const [filter, setFilter] = useState<"all" | "boardgame" | "mahjong" | "social">("all");
-  const [selectedMonth, setSelectedMonth] = useState<string>("all");
+  
+  const [searchParams, setSearchParams] = useSearchParams();
+  const filter = (searchParams.get("filter") as "all" | "boardgame" | "mahjong" | "social") || "all";
+  const selectedMonth = searchParams.get("month") || "all";
+
+  const setFilter = (newFilter: string) => {
+    const newParams = new URLSearchParams(searchParams);
+    if (newFilter === "all") {
+      newParams.delete("filter");
+    } else {
+      newParams.set("filter", newFilter);
+    }
+    setSearchParams(newParams);
+  };
+
+  const setSelectedMonth = (newMonth: string) => {
+    const newParams = new URLSearchParams(searchParams);
+    if (newMonth === "all") {
+      newParams.delete("month");
+    } else {
+      newParams.set("month", newMonth);
+    }
+    setSearchParams(newParams);
+  };
+
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -153,7 +177,8 @@ export default function HomePage() {
       min_players: minPlayers,
       max_players: maxPlayers,
       max_available_count: maxCount + 1,
-      best_date: bestDate
+      best_date: bestDate,
+      availability_counts: availabilityCounts
     };
   });
 
@@ -194,39 +219,41 @@ export default function HomePage() {
 
   return (
     <div className="space-y-4">
-      <div className="text-center max-w-2xl mx-auto pb-2 space-y-2">
-        <div className="max-w-lg mx-auto bg-amber-300 border-2 border-black shadow-[2px_2px_0_0_rgba(0,0,0,1)] rounded-lg p-2 sm:p-2.5 text-left">
-          <p className="text-sm text-black font-bold leading-relaxed">
-            <span className="font-black text-rose-600">⚠️ 注意：</span>租場地方場費用自理。本平台只提供聚會約腳資訊，本平台不負責聚會地點/費用/主持質素。請自行 PM Host 主持了解。
-          </p>
+      {filter === 'all' && (
+        <div className="text-center max-w-2xl mx-auto pb-2 space-y-2">
+          <div className="max-w-lg mx-auto bg-amber-300 border-2 border-black shadow-[2px_2px_0_0_rgba(0,0,0,1)] rounded-lg p-2 sm:p-2.5 text-left">
+            <p className="text-sm text-black font-bold leading-relaxed">
+              <span className="font-black text-rose-600">⚠️ 注意：</span>租場地方場費用自理。本平台只提供聚會約腳資訊，本平台不負責聚會地點/費用/主持質素。請自行 PM Host 主持了解。
+            </p>
+          </div>
+          <div className="max-w-lg mx-auto bg-sky-200 border-2 border-black shadow-[2px_2px_0_0_rgba(0,0,0,1)] rounded-lg p-2 sm:p-2.5 text-left">
+            <p className="text-sm text-black font-bold leading-relaxed">
+              <span className="font-black text-indigo-700">💡 約局說明：</span>Host 主持必需留下電話，取得約局專用 Code。為防甩底，參加者要成功報名，必需 WhatsApp Host 主持以取得專用 Code，填入正確 Code 方能成功報名。
+            </p>
+          </div>
+          
+          <div className="max-w-lg mx-auto flex flex-col sm:flex-row gap-2 justify-center pt-2">
+            <a
+              href="https://wa.me/85293737819"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center justify-center gap-1.5 px-3 py-2 bg-green-500 hover:bg-green-600 text-white border-2 border-black shadow-[2px_2px_0_0_rgba(0,0,0,1)] rounded-lg text-xs sm:text-sm font-bold hover:translate-y-[2px] hover:shadow-none transition-all w-full sm:w-auto"
+            >
+              <MessageCircle className="w-4 h-4 shrink-0" />
+              聯絡池記桌遊關於如何使用平台
+            </a>
+            <a
+              href="https://wa.me/85293737819"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center justify-center gap-1.5 px-3 py-2 bg-amber-400 hover:bg-amber-500 text-black border-2 border-black shadow-[2px_2px_0_0_rgba(0,0,0,1)] rounded-lg text-xs sm:text-sm font-bold hover:translate-y-[2px] hover:shadow-none transition-all w-full sm:w-auto"
+            >
+              <MessageCircle className="w-4 h-4 shrink-0" />
+              查詢租用池記桌遊荔枝角場地
+            </a>
+          </div>
         </div>
-        <div className="max-w-lg mx-auto bg-sky-200 border-2 border-black shadow-[2px_2px_0_0_rgba(0,0,0,1)] rounded-lg p-2 sm:p-2.5 text-left">
-          <p className="text-sm text-black font-bold leading-relaxed">
-            <span className="font-black text-indigo-700">💡 約局說明：</span>Host 主持必需留下電話，取得約局專用 Code。為防甩底，參加者要成功報名，必需 WhatsApp Host 主持以取得專用 Code，填入正確 Code 方能成功報名。
-          </p>
-        </div>
-        
-        <div className="max-w-lg mx-auto flex flex-col sm:flex-row gap-2 justify-center pt-2">
-          <a
-            href="https://wa.me/85293737819"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center justify-center gap-1.5 px-3 py-2 bg-green-500 hover:bg-green-600 text-white border-2 border-black shadow-[2px_2px_0_0_rgba(0,0,0,1)] rounded-lg text-xs sm:text-sm font-bold hover:translate-y-[2px] hover:shadow-none transition-all w-full sm:w-auto"
-          >
-            <MessageCircle className="w-4 h-4 shrink-0" />
-            聯絡池記桌遊關於如何使用平台
-          </a>
-          <a
-            href="https://wa.me/85293737819"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center justify-center gap-1.5 px-3 py-2 bg-amber-400 hover:bg-amber-500 text-black border-2 border-black shadow-[2px_2px_0_0_rgba(0,0,0,1)] rounded-lg text-xs sm:text-sm font-bold hover:translate-y-[2px] hover:shadow-none transition-all w-full sm:w-auto"
-          >
-            <MessageCircle className="w-4 h-4 shrink-0" />
-            查詢租用池記桌遊荔枝角場地
-          </a>
-        </div>
-      </div>
+      )}
 
       <div>
         <div className="flex flex-col mb-3 gap-1.5">
@@ -297,24 +324,24 @@ export default function HomePage() {
                 onClick={() => navigate(`/session/${session.id}`)}
                 className={`brutal-card p-1 sm:p-1.5 flex flex-col h-full cursor-pointer relative ${bgColor} hover:bg-white`}
               >
-                <div className="mb-1 flex justify-between items-center gap-1">
+                <div className="mb-1 flex justify-between items-start gap-3">
                   <div className="flex-1 min-w-0">
-                    <h3 className="text-2xl sm:text-3xl font-black text-stone-900 leading-none line-clamp-1">
+                    <h3 className="text-2xl sm:text-3xl font-black text-stone-900 leading-tight">
                       {session.game_name}
                     </h3>
-                    <p className="text-stone-700 font-bold text-base mt-0.5 leading-none truncate">
+                    <p className="text-stone-600 font-bold text-sm sm:text-base leading-tight">
                       HOST-主持：{session.host_name}
                     </p>
                   </div>
-                  <div className="flex items-start gap-1 shrink-0">
-                    <div className="flex items-center justify-center bg-orange-400 text-black px-1.5 py-1 rounded-xl font-black hover:bg-orange-500 transition-colors border-2 border-black shadow-[2px_2px_0_0_rgba(0,0,0,1)] group text-xs sm:text-sm">
+                  <div className="flex flex-col items-end gap-1.5 shrink-0">
+                    <div className="flex items-center justify-center bg-orange-400 text-black px-2.5 py-1.5 rounded-xl font-black hover:bg-orange-500 transition-colors border-2 border-black shadow-[3px_3px_0_0_rgba(0,0,0,1)] group text-xs sm:text-sm whitespace-nowrap">
                       按這裡報名!
-                      <ChevronRight className="w-3 h-3 sm:w-3.5 sm:h-3.5 ml-0.5 group-hover:translate-x-1 transition-transform" />
+                      <ChevronRight className="w-3.5 h-3.5 ml-0.5 group-hover:translate-x-1 transition-transform" />
                     </div>
                     {isAdmin && (
                       <button
                         onClick={(e) => handleDeleteClick(e, session.id)}
-                        className="p-1.5 text-stone-400 hover:text-rose-600 hover:bg-rose-100 rounded-full transition-colors z-10"
+                        className="p-1 text-stone-400 hover:text-rose-600 hover:bg-rose-100 rounded-full transition-colors z-10 border-2 border-transparent hover:border-rose-200"
                         title="刪除約局"
                       >
                         <Trash2 className="w-4 h-4 sm:w-5 sm:h-5" />
@@ -323,66 +350,71 @@ export default function HomePage() {
                   </div>
                 </div>
 
-                <div className="space-y-0.5 mt-0.5">
+                <div className="space-y-0.5 mt-1 pt-1 border-t-2 border-black/5">
                   {session.game_source !== "N/A" && (
-                    <div className="flex items-center gap-1 text-stone-800 font-bold text-sm">
-                      <div className="bg-white p-0.5 rounded-md border-2 border-black shadow-[2px_2px_0_0_rgba(0,0,0,1)]">
+                    <div className="flex items-start gap-2 text-stone-800 font-bold text-sm">
+                      <div className="bg-white p-0.5 rounded-md border-2 border-black shadow-[2px_2px_0_0_rgba(0,0,0,1)] shrink-0">
                         <Package className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-indigo-500" />
                       </div>
-                      <span className="truncate">{session.game_source}</span>
+                      <span className="leading-tight">{session.game_source}</span>
                     </div>
                   )}
                   {session.location && (
-                    <div className="flex items-center gap-1 text-stone-800 font-bold text-sm">
-                      <div className="bg-white p-0.5 rounded-md border-2 border-black shadow-[2px_2px_0_0_rgba(0,0,0,1)]">
+                    <div className="flex items-start gap-2 text-stone-800 font-bold text-sm">
+                      <div className="bg-white p-0.5 rounded-md border-2 border-black shadow-[2px_2px_0_0_rgba(0,0,0,1)] shrink-0">
                         <MapPin className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-rose-500" />
                       </div>
-                      <span className="truncate">{session.location}</span>
+                      <span className="leading-tight">{session.location}</span>
                     </div>
                   )}
                   {session.rules && (
-                    <div className="flex items-center gap-1 text-stone-800 font-bold text-sm">
-                      <div className="bg-white p-0.5 rounded-md border-2 border-black shadow-[2px_2px_0_0_rgba(0,0,0,1)]">
+                    <div className="flex items-start gap-2 text-stone-800 font-bold text-sm">
+                      <div className="bg-white p-0.5 rounded-md border-2 border-black shadow-[2px_2px_0_0_rgba(0,0,0,1)] shrink-0">
                         <Info className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-blue-500" />
                       </div>
-                      <span className="truncate">{session.rules}</span>
+                      <span className="leading-tight">{session.rules}</span>
                     </div>
                   )}
                   {session.purpose && (
-                    <div className="flex items-center gap-1 text-stone-800 font-bold text-sm">
-                      <div className="bg-white p-0.5 rounded-md border-2 border-black shadow-[2px_2px_0_0_rgba(0,0,0,1)]">
+                    <div className="flex items-start gap-2 text-stone-800 font-bold text-sm">
+                      <div className="bg-white p-0.5 rounded-md border-2 border-black shadow-[2px_2px_0_0_rgba(0,0,0,1)] shrink-0">
                         <Target className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-500" />
                       </div>
-                      <span className="truncate">{session.purpose}</span>
+                      <span className="leading-tight">{session.purpose}</span>
                     </div>
                   )}
                   {session.content && (
-                    <div className="flex items-center gap-1 text-stone-800 font-bold text-sm">
-                      <div className="bg-white p-0.5 rounded-md border-2 border-black shadow-[2px_2px_0_0_rgba(0,0,0,1)]">
+                    <div className="flex items-start gap-2 text-stone-800 font-bold text-sm">
+                      <div className="bg-white p-0.5 rounded-md border-2 border-black shadow-[2px_2px_0_0_rgba(0,0,0,1)] shrink-0">
                         <FileText className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-orange-500" />
                       </div>
-                      <span className="truncate">{session.content}</span>
+                      <span className="leading-tight">{session.content}</span>
                     </div>
                   )}
-                  <div className="flex items-center gap-1 text-stone-800 font-bold text-sm">
-                    <div className="bg-white p-0.5 rounded-md border-2 border-black shadow-[2px_2px_0_0_rgba(0,0,0,1)]">
+                  <div className="flex items-start gap-2 text-stone-800 font-bold text-sm">
+                    <div className="bg-white p-0.5 rounded-md border-2 border-black shadow-[2px_2px_0_0_rgba(0,0,0,1)] shrink-0">
                       <Users className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-orange-500" />
                     </div>
-                    <div className="flex flex-col leading-tight">
-                      <span className="truncate">
+                    <div className="flex flex-col leading-tight gap-0.5">
+                      <span className="">
                         理想人數：{formatPreference(session.player_count_preference)}
                       </span>
-                      <span className={session.max_available_count! >= session.min_players ? "text-rose-600 font-black truncate" : "text-amber-600 font-black truncate"}>
-                        {session.best_date && `${format(parseISO(session.best_date.split('~')[0]), "M月d日", { locale: zhTW })} `}
-                        {session.max_available_count! >= session.max_players
-                          ? "已滿團"
-                          : session.max_available_count! >= session.min_players 
-                          ? `已成團 (可再加 ${session.max_players - session.max_available_count!} 人)` 
-                          : `欠 ${session.min_players - session.max_available_count!} 人成團`}
-                      </span>
+                      {session.dates_available.map(date => {
+                        const count = (session.availability_counts?.[date] || 0) + 1;
+                        return (
+                          <span key={date} className={clsx("block", count >= session.min_players ? "text-rose-600 font-black" : "text-amber-600 font-black")}>
+                            {format(parseISO(date.split('~')[0]), "M月d日", { locale: zhTW })} 
+                            {count >= session.max_players
+                              ? "已滿團"
+                              : count >= session.min_players 
+                              ? `已成團 (可再加 ${session.max_players - count} 人)` 
+                              : `欠 ${session.min_players - count} 人成團`}
+                          </span>
+                        );
+                      })}
                     </div>
                   </div>
-                  <div className="flex items-start gap-1 text-stone-800 font-bold text-sm">
+                  <div className="flex items-start gap-2 text-stone-800 font-bold text-sm">
                     <div className="bg-white p-0.5 rounded-md border-2 border-black shadow-[2px_2px_0_0_rgba(0,0,0,1)] mt-0.5 shrink-0">
                       <Clock className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-teal-500" />
                     </div>

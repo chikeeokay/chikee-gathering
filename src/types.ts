@@ -13,6 +13,7 @@ export interface Session {
   created_at: string;
   max_available_count?: number;
   best_date?: string;
+  availability_counts?: Record<string, number>;
   booking_code?: string;
   host_uid?: string;
   purpose?: string;

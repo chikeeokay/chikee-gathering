@@ -168,10 +168,6 @@ export default function SessionDetailsPage() {
 
   const handleSubmitResponse = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user) {
-      alert("請先登入");
-      return;
-    }
     if (!playerName) {
       alert("請輸入你的名字。");
       return;
@@ -192,37 +188,61 @@ export default function SessionDetailsPage() {
     setIsSubmitting(true);
     setSubmitError("");
 
-    // Check for overlapping dates across all user's previous responses in this session
-    const userPreviousDates = new Set<string>();
+    // Use user.uid if logged in, otherwise use a persistent anonymous ID from localStorage
+    let participant_uid = user?.uid;
+    if (!participant_uid) {
+      participant_uid = localStorage.getItem('anon_participant_id') || "";
+      if (!participant_uid) {
+        participant_uid = `anon_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
+        localStorage.setItem('anon_participant_id', participant_uid);
+      }
+    }
+
+    // Check for overlapping dates for THIS NAME across all user's previous responses in this session
+    const namePreviousDates = new Set<string>();
     session?.responses.forEach(r => {
-      if (r.participant_uid === user.uid) {
-        r.dates_available.forEach(d => userPreviousDates.add(d));
+      if (r.participant_uid === participant_uid && r.player_name.trim() === playerName.trim()) {
+        r.dates_available.forEach(d => namePreviousDates.add(d));
       }
     });
 
-    const overlappingDates = Array.from(selectedDates).filter(d => userPreviousDates.has(d));
+    const overlappingDates = Array.from(selectedDates).filter(d => namePreviousDates.has(d));
     if (overlappingDates.length > 0) {
       const formattedOverlap = overlappingDates.map(d => format(parseISO(d.split('~')[0]), "M月d日")).join(", ");
-      setSubmitError(`你已經報名過以下時段：${formattedOverlap}，請取消勾選後再送出。`);
+      setSubmitError(`你已用名字「${playerName}」報名過以下時段：${formattedOverlap}，請取消勾選後再送出。`);
       setIsSubmitting(false);
       return;
     }
 
     try {
-      await addDoc(collection(db, "responses"), {
+      const responseData = {
         session_id: id,
-        participant_uid: user.uid,
+        participant_uid: participant_uid,
         player_name: playerName,
         dates_available: Array.from(selectedDates),
         created_at: new Date().toISOString()
-      });
+      };
+      console.log("Submitting response:", responseData);
+      
+      await addDoc(collection(db, "responses"), responseData);
 
       // Reset form
       setBookingCode("");
       setSelectedDates(new Set());
     } catch (err: any) {
-      console.error(err);
-      setSubmitError(err.message || "送出回覆失敗，請再試一次。");
+      console.error("Join error:", err);
+      const errorMessage = err.message || String(err);
+      if (errorMessage.toLowerCase().includes("permission") || errorMessage.toLowerCase().includes("insufficient")) {
+        setSubmitError("權限不足：請確保你已輸入正確的資料。如果問題持續，請聯絡管理員。");
+      } else {
+        setSubmitError(errorMessage || "送出回覆失敗，請再試一次。");
+      }
+      // Log full error info for diagnostics
+      try {
+        handleFirestoreError(err, OperationType.CREATE, "responses");
+      } catch (e) {
+        // Already logged by handleFirestoreError
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -464,15 +484,15 @@ export default function SessionDetailsPage() {
                         <div key={response.id} className="flex justify-between items-center group">
                           <div className="flex items-center gap-1 min-w-0">
                             <span className="text-base font-bold text-stone-700 truncate">{response.player_name}</span>
-                            {(user?.uid === response.participant_uid || user?.uid === session.host_uid || isAdmin) && (
-                              <button
-                                onClick={() => setResponseToDelete({ id: response.id, name: response.player_name })}
-                                className="text-rose-500 hover:text-rose-700 transition-colors p-1 hover:bg-rose-100 rounded-lg border-2 border-transparent hover:border-rose-200 shrink-0"
-                                title="刪除參加者"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </button>
-                            )}
+                          {( (user?.uid && user.uid === session.host_uid) || isAdmin ) && (
+                            <button
+                              onClick={() => setResponseToDelete({ id: response.id, name: response.player_name })}
+                              className="text-rose-500 hover:text-rose-700 transition-colors p-1 hover:bg-rose-100 rounded-lg border-2 border-transparent hover:border-rose-200 shrink-0"
+                              title="刪除參加者"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          )}
                           </div>
                           <div className={cn(
                             "w-5 h-5 rounded-md border-2 border-black flex items-center justify-center shrink-0 relative",
@@ -596,7 +616,7 @@ export default function SessionDetailsPage() {
                       <td className="p-1 sm:p-1.5 text-stone-800 font-bold text-sm sm:text-base border-r-4 border-black relative">
                         <div className="flex items-center justify-between">
                           <span>{response.player_name}</span>
-                          {(user?.uid === response.participant_uid || user?.uid === session.host_uid || isAdmin) && (
+                          {( (user?.uid && user.uid === session.host_uid) || isAdmin ) && (
                             <button
                               onClick={() => setResponseToDelete({ id: response.id, name: response.player_name })}
                               className="text-rose-500 hover:text-rose-700 transition-colors p-1.5 hover:bg-rose-100 rounded-xl border-2 border-transparent hover:border-rose-200"
@@ -714,39 +734,26 @@ export default function SessionDetailsPage() {
               </div>
             )}
 
-            <div className="flex flex-col sm:flex-row gap-3">
-              <Link
-                to="/"
-                className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-white hover:bg-stone-50 text-black text-base font-black border-4 border-black rounded-2xl shadow-[4px_4px_0_0_rgba(0,0,0,1)] transition-transform hover:-translate-y-1 hover:shadow-[6px_6px_0_0_rgba(0,0,0,1)]"
-              >
-                <LogIn className="w-5 h-5 rotate-180" />
-                <span>返回首頁</span>
-              </Link>
+            <div className="flex flex-col gap-3">
+              {/* Hint for cancellation */}
+              <div className="brutal-card p-3 bg-amber-100 border-4 border-black rounded-2xl shadow-[4px_4px_0_0_rgba(0,0,0,1)] flex items-center justify-center gap-2">
+                <Info className="w-5 h-5 text-amber-600 shrink-0" />
+                <span className="text-sm sm:text-base font-black text-stone-900">
+                  💡 如要取消報名，請自行 PM HOST 主持
+                </span>
+              </div>
 
-              {user && session.responses.some(r => r.participant_uid === user.uid) && (
-                <button
-                  onClick={() => {
-                    const myResponse = session.responses.find(r => r.participant_uid === user.uid);
-                    if (myResponse) {
-                      setResponseToDelete({ id: myResponse.id, name: myResponse.player_name });
-                    }
-                  }}
-                  className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-rose-500 hover:bg-rose-600 text-white text-base font-black border-4 border-black rounded-2xl shadow-[4px_4px_0_0_rgba(0,0,0,1)] transition-transform hover:-translate-y-1 hover:shadow-[6px_6px_0_0_rgba(0,0,0,1)]"
-                >
-                  <Trash2 className="w-5 h-5" />
-                  <span>取消我的報名 (Delete My Registration)</span>
-                </button>
-              )}
-
-              {user?.uid === session.host_uid && (
-                <button
-                  onClick={() => setShowDeleteConfirm(true)}
-                  className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-stone-900 hover:bg-black text-white text-base font-black border-4 border-black rounded-2xl shadow-[4px_4px_0_0_rgba(0,0,0,1)] transition-transform hover:-translate-y-1 hover:shadow-[6px_6px_0_0_rgba(0,0,0,1)]"
-                >
-                  <Trash2 className="w-5 h-5" />
-                  <span>刪除整個約局 (Delete Session)</span>
-                </button>
-              )}
+              <div className="flex flex-col sm:flex-row gap-3">
+                {user?.uid === session.host_uid && (
+                  <button
+                    onClick={() => setShowDeleteConfirm(true)}
+                    className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-stone-900 hover:bg-black text-white text-base font-black border-4 border-black rounded-2xl shadow-[4px_4px_0_0_rgba(0,0,0,1)] transition-transform hover:-translate-y-1 hover:shadow-[6px_6px_0_0_rgba(0,0,0,1)]"
+                  >
+                    <Trash2 className="w-5 h-5" />
+                    <span>刪除整個約局 (Delete Session)</span>
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -758,25 +765,30 @@ export default function SessionDetailsPage() {
               報名表
             </h3>
 
-            {!user ? (
-              <div className="text-center py-4">
-                <p className="text-stone-600 font-bold mb-4">請先登入以進行報名</p>
-                <button
-                  onClick={handleLogin}
-                  disabled={isLoggingIn}
-                  className={`w-full brutal-btn bg-orange-400 hover:bg-orange-500 text-black px-4 py-2 text-lg flex items-center justify-center gap-2 ${isLoggingIn ? 'opacity-50 cursor-not-allowed' : ''}`}
-                >
-                  <LogIn className="w-5 h-5" />
-                  {isLoggingIn ? '登入中...' : 'Google 登入'}
-                </button>
-              </div>
-            ) : (
-              <form onSubmit={handleSubmitResponse} className="space-y-2">
-                {session.responses.some(r => r.participant_uid === user.uid) && (
+            {(() => {
+              const currentUid = user?.uid || localStorage.getItem('anon_participant_id');
+              const hasAnyRegistration = currentUid && session.responses.some(r => r.participant_uid === currentUid);
+              const hasRegistrationWithName = currentUid && playerName.trim() && session.responses.some(r => 
+                r.participant_uid === currentUid && r.player_name.trim() === playerName.trim()
+              );
+
+              if (hasRegistrationWithName) {
+                return (
                   <div className="bg-blue-50 border-2 border-blue-200 p-2 rounded-xl text-xs font-bold text-blue-700 mb-2">
-                    💡 你已報名過此約局，可以繼續報名其他「未選擇過」的時段。
+                    💡 你已用名字「{playerName}」報名過，可以繼續報名其他時段。
                   </div>
-                )}
+                );
+              } else if (hasAnyRegistration) {
+                return (
+                  <div className="bg-green-50 border-2 border-green-200 p-2 rounded-xl text-xs font-bold text-green-700 mb-2">
+                    💡 你已報名過。如要幫朋友報名，請輸入朋友的名字。
+                  </div>
+                );
+              }
+              return null;
+            })()}
+
+            <form onSubmit={handleSubmitResponse} className="space-y-2">
               <div>
                 <label
                   htmlFor="playerName"
@@ -836,7 +848,12 @@ export default function SessionDetailsPage() {
                 <div className="space-y-1.5">
                   {session.dates_available.map((date) => {
                     const isFull = availabilityCounts[date] + 1 >= session.max_players;
-                    const isAlreadyRegisteredByMe = session.responses.some(r => r.participant_uid === user.uid && r.dates_available.includes(date));
+                    const currentUid = user?.uid || localStorage.getItem('anon_participant_id');
+                    const isAlreadyRegisteredByThisName = session.responses.some(r => 
+                      r.participant_uid === currentUid && 
+                      r.player_name.trim() === playerName.trim() && 
+                      r.dates_available.includes(date)
+                    );
                     const [startStr, endStr] = date.split('~');
                     
                     return (
@@ -844,7 +861,7 @@ export default function SessionDetailsPage() {
                       key={date}
                       className={cn(
                         "flex items-center p-2.5 border-4 rounded-2xl transition-all",
-                        isAlreadyRegisteredByMe 
+                        isAlreadyRegisteredByThisName 
                           ? "opacity-60 bg-stone-100 border-stone-300 cursor-not-allowed"
                           : selectedDates.has(date)
                             ? "border-black bg-orange-300 shadow-[4px_4px_0_0_rgba(0,0,0,1)] -translate-y-0.5 cursor-pointer"
@@ -855,13 +872,13 @@ export default function SessionDetailsPage() {
                         type="checkbox"
                         className="sr-only"
                         checked={selectedDates.has(date)}
-                        onChange={() => !isAlreadyRegisteredByMe && toggleDateSelection(date)}
-                        disabled={isAlreadyRegisteredByMe}
+                        onChange={() => !isAlreadyRegisteredByThisName && toggleDateSelection(date)}
+                        disabled={isAlreadyRegisteredByThisName}
                       />
                       <div
                         className={cn(
                           "w-6 h-6 rounded-md border-2 flex items-center justify-center mr-3 transition-colors shrink-0",
-                          isAlreadyRegisteredByMe
+                          isAlreadyRegisteredByThisName
                             ? "bg-stone-300 border-stone-400"
                             : selectedDates.has(date)
                               ? "bg-black border-black"
@@ -871,7 +888,7 @@ export default function SessionDetailsPage() {
                         {selectedDates.has(date) && (
                           <Check className="w-4 h-4 text-white stroke-[3]" />
                         )}
-                        {isAlreadyRegisteredByMe && (
+                        {isAlreadyRegisteredByThisName && (
                           <Check className="w-4 h-4 text-stone-500 stroke-[3]" />
                         )}
                       </div>
@@ -879,16 +896,16 @@ export default function SessionDetailsPage() {
                         <span
                           className={cn(
                             "text-base font-black leading-tight",
-                            isAlreadyRegisteredByMe ? "text-stone-400" : selectedDates.has(date) ? "text-black" : "text-stone-900",
+                            isAlreadyRegisteredByThisName ? "text-stone-400" : selectedDates.has(date) ? "text-black" : "text-stone-900",
                           )}
                         >
                           {format(parseISO(startStr), "M月d日", { locale: zhTW })}
-                          {isAlreadyRegisteredByMe && (
+                          {isAlreadyRegisteredByThisName && (
                             <span className="ml-2 text-[10px] bg-stone-200 text-stone-600 px-1.5 py-0.5 rounded border-2 border-stone-300 align-middle">
                               你已報名此時段
                             </span>
                           )}
-                          {!isAlreadyRegisteredByMe && isFull && (
+                          {!isAlreadyRegisteredByThisName && isFull && (
                             <span className="ml-2 text-[10px] bg-amber-300 text-black px-1.5 py-0.5 rounded border-2 border-black shadow-[1px_1px_0_0_rgba(0,0,0,1)] align-middle">
                               waiting list
                             </span>
@@ -897,7 +914,7 @@ export default function SessionDetailsPage() {
                         <span
                           className={cn(
                             "text-sm font-bold",
-                            isAlreadyRegisteredByMe ? "text-stone-400" : selectedDates.has(date) ? "text-black/80" : "text-stone-500",
+                            isAlreadyRegisteredByThisName ? "text-stone-400" : selectedDates.has(date) ? "text-black/80" : "text-stone-500",
                           )}
                         >
                           {format(parseISO(startStr), "HHmm")}
@@ -928,7 +945,6 @@ export default function SessionDetailsPage() {
                 {isSubmitting ? "送出中..." : "送出時間"}
               </button>
             </form>
-            )}
           </div>
         </div>
       </div>

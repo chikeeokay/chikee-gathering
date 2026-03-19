@@ -1,6 +1,6 @@
 import React, { useState, useContext, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
-import { Plus, Trash2, Calendar as CalendarIcon, PartyPopper, LogIn } from "lucide-react";
+import { Link, useNavigate } from "react-router-dom";
+import { Plus, Trash2, Calendar as CalendarIcon, PartyPopper, LogIn, Home } from "lucide-react";
 import { format } from "date-fns";
 import { AuthContext } from "../App";
 import { db, signInWithGoogle } from "../firebase";
@@ -277,40 +277,38 @@ export default function CreateSessionPage() {
             </div>
           </div>
 
-          {eventType !== "social" && (
-            <div>
-              <label
-                htmlFor="gameName"
-                className="block text-sm sm:text-base font-bold text-stone-900 mb-0 leading-none"
+          <div>
+            <label
+              htmlFor="gameName"
+              className="block text-sm sm:text-base font-bold text-stone-900 mb-0 leading-none"
+            >
+              {eventType === "mahjong" ? "想打的牌" : eventType === "social" ? "聚會標題" : "想玩的遊戲"}
+            </label>
+            {eventType === "mahjong" ? (
+              <select
+                id="gameName"
+                value={gameName}
+                onChange={(e) => setGameName(e.target.value)}
+                className="brutal-input w-full px-1 py-0.5 text-sm sm:text-base bg-white leading-tight"
+                required
               >
-                {eventType === "mahjong" ? "想打的牌" : "想玩的遊戲"}
-              </label>
-              {eventType === "mahjong" ? (
-                <select
-                  id="gameName"
-                  value={gameName}
-                  onChange={(e) => setGameName(e.target.value)}
-                  className="brutal-input w-full px-1 py-0.5 text-sm sm:text-base bg-white leading-tight"
-                  required
-                >
-                  <option value="港式台牌">港式台牌</option>
-                  <option value="廣東牌">廣東牌</option>
-                  <option value="跑馬仔">跑馬仔</option>
-                  <option value="越南百搭">越南百搭</option>
-                </select>
-              ) : (
-                <input
-                  type="text"
-                  id="gameName"
-                  value={gameName}
-                  onChange={(e) => setGameName(e.target.value)}
-                  className="brutal-input w-full px-1 py-0.5 text-sm sm:text-base leading-tight"
-                  placeholder="例如：卡坦島、殖民火星"
-                  required
-                />
-              )}
-            </div>
-          )}
+                <option value="港式台牌">港式台牌</option>
+                <option value="廣東牌">廣東牌</option>
+                <option value="跑馬仔">跑馬仔</option>
+                <option value="越南百搭">越南百搭</option>
+              </select>
+            ) : (
+              <input
+                type="text"
+                id="gameName"
+                value={gameName}
+                onChange={(e) => setGameName(e.target.value)}
+                className="brutal-input w-full px-1 py-0.5 text-sm sm:text-base leading-tight"
+                placeholder={eventType === "social" ? "例如：交友聚會、桌遊交流" : "例如：卡坦島、殖民火星"}
+                required
+              />
+            )}
+          </div>
 
           <div>
             <label
@@ -522,7 +520,7 @@ export default function CreateSessionPage() {
           </div>
         </div>
 
-        <div className="mt-1.5 pt-1.5 border-t-4 border-black flex justify-end">
+        <div className="mt-1.5 pt-1.5 border-t-4 border-black flex justify-end gap-3">
           <button
             type="submit"
             disabled={isSubmitting}
