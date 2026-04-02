@@ -7,6 +7,7 @@ export interface Session {
   dates_available: string[];
   game_source: string;
   location?: string;
+  fee?: string;
   min_players: number;
   max_players: number;
   rules?: string;

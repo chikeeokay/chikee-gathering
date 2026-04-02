@@ -34,6 +34,7 @@ export default function CreateSessionPage() {
   const [hostWhatsapp, setHostWhatsapp] = useState("");
   const [gameName, setGameName] = useState("");
   const [location, setLocation] = useState("");
+  const [fee, setFee] = useState("");
   const [rules, setRules] = useState("");
   const [purpose, setPurpose] = useState("");
   const [content, setContent] = useState("");
@@ -118,6 +119,7 @@ export default function CreateSessionPage() {
         dates_available: validDates,
         game_source: "N/A",
         location: location,
+        fee: fee,
         min_players: finalMinPlayers,
         max_players: finalMaxPlayers,
         booking_code: bookingCode,
@@ -324,6 +326,23 @@ export default function CreateSessionPage() {
               onChange={(e) => setLocation(e.target.value)}
               className="brutal-input w-full px-1 py-0.5 text-sm sm:text-base leading-tight"
               placeholder="例如: 池記桌遊 荔枝角桌遊旅人 旺角桌遊店"
+            />
+          </div>
+
+          <div>
+            <label
+              htmlFor="fee"
+              className="block text-sm sm:text-base font-bold text-stone-900 mb-0 leading-none"
+            >
+              場錢/費用 (選填)
+            </label>
+            <input
+              type="text"
+              id="fee"
+              value={fee}
+              onChange={(e) => setFee(e.target.value)}
+              className="brutal-input w-full px-1 py-0.5 text-sm sm:text-base leading-tight"
+              placeholder="例如: $50/位、按時收費、AA制"
             />
           </div>
 

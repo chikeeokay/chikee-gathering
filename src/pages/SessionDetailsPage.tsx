@@ -14,7 +14,8 @@ import {
   Info,
   Target,
   FileText,
-  LogIn
+  LogIn,
+  CircleDollarSign
 } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { zhTW } from "date-fns/locale";
@@ -444,6 +445,12 @@ export default function SessionDetailsPage() {
               <div className="flex items-center gap-1 text-stone-800 bg-white border-2 border-black px-1.5 py-0.5 rounded-xl text-sm font-bold shadow-[2px_2px_0_0_rgba(0,0,0,1)]">
                 <MapPin className="w-3.5 h-3.5 text-rose-500 shrink-0" />
                 {session.location}
+              </div>
+            )}
+            {session.fee && (
+              <div className="flex items-center gap-1 text-stone-800 bg-white border-2 border-black px-1.5 py-0.5 rounded-xl text-sm font-bold shadow-[2px_2px_0_0_rgba(0,0,0,1)]">
+                <CircleDollarSign className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                {session.fee}元場地費用
               </div>
             )}
             <div className="flex items-center gap-1 text-stone-800 bg-white border-2 border-black px-1.5 py-0.5 rounded-xl text-sm font-bold shadow-[2px_2px_0_0_rgba(0,0,0,1)]">
