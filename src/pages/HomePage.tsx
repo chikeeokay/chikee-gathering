@@ -322,14 +322,14 @@ export default function HomePage() {
               <div
                 key={session.id}
                 onClick={() => navigate(`/session/${session.id}`)}
-                className={`brutal-card p-1 sm:p-1.5 flex flex-col h-full cursor-pointer relative ${bgColor} hover:bg-white`}
+                className={`brutal-card p-2 flex flex-col h-full cursor-pointer relative ${bgColor} hover:bg-white transition-colors`}
               >
-                <div className="mb-1 flex justify-between items-start gap-3">
+                <div className="flex justify-between items-start gap-2 mb-1">
                   <div className="flex-1 min-w-0">
-                    <h3 className="text-2xl sm:text-3xl font-black text-stone-900 leading-tight">
+                    <h3 className="text-xl sm:text-2xl font-black text-stone-900 leading-none mb-0.5">
                       {session.game_name}
                     </h3>
-                    <p className="text-stone-600 font-bold text-sm sm:text-base leading-tight">
+                    <p className="text-stone-600 font-bold text-xs sm:text-sm leading-none">
                       HOST-主持：{session.host_name}
                     </p>
                   </div>
@@ -344,97 +344,68 @@ export default function HomePage() {
                         className="p-1 text-stone-400 hover:text-rose-600 hover:bg-rose-100 rounded-full transition-colors z-10 border-2 border-transparent hover:border-rose-200"
                         title="刪除約局"
                       >
-                        <Trash2 className="w-4 h-4 sm:w-5 sm:h-5" />
+                        <Trash2 className="w-4 h-4" />
                       </button>
                     )}
                   </div>
                 </div>
 
-                <div className="space-y-0.5 mt-1 pt-1 border-t-2 border-black/5">
+                <div className="space-y-0.5 mt-0.5 pt-0.5 border-t-2 border-black/5 flex-1">
                   {session.game_source !== "N/A" && (
-                    <div className="flex items-start gap-2 text-stone-800 font-bold text-sm">
-                      <div className="bg-white p-0.5 rounded-md border-2 border-black shadow-[2px_2px_0_0_rgba(0,0,0,1)] shrink-0">
-                        <Package className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-indigo-500" />
-                      </div>
+                    <div className="flex items-start gap-1.5 text-stone-800 font-bold text-xs sm:text-sm">
+                      <Package className="w-3.5 h-3.5 text-indigo-500 shrink-0 mt-0.5" />
                       <span className="leading-tight">{session.game_source}</span>
                     </div>
                   )}
                   {session.location && (
-                    <div className="flex items-start gap-2 text-stone-800 font-bold text-sm">
-                      <div className="bg-white p-0.5 rounded-md border-2 border-black shadow-[2px_2px_0_0_rgba(0,0,0,1)] shrink-0">
-                        <MapPin className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-rose-500" />
-                      </div>
+                    <div className="flex items-start gap-1.5 text-stone-800 font-bold text-xs sm:text-sm">
+                      <MapPin className="w-3.5 h-3.5 text-rose-500 shrink-0 mt-0.5" />
                       <span className="leading-tight">{session.location}</span>
                     </div>
                   )}
-                  {session.rules && (
-                    <div className="flex items-start gap-2 text-stone-800 font-bold text-sm">
-                      <div className="bg-white p-0.5 rounded-md border-2 border-black shadow-[2px_2px_0_0_rgba(0,0,0,1)] shrink-0">
-                        <Info className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-blue-500" />
-                      </div>
-                      <span className="leading-tight">{session.rules}</span>
-                    </div>
-                  )}
                   {session.purpose && (
-                    <div className="flex items-start gap-2 text-stone-800 font-bold text-sm">
-                      <div className="bg-white p-0.5 rounded-md border-2 border-black shadow-[2px_2px_0_0_rgba(0,0,0,1)] shrink-0">
-                        <Target className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-500" />
-                      </div>
+                    <div className="flex items-start gap-1.5 text-stone-800 font-bold text-xs sm:text-sm">
+                      <Target className="w-3.5 h-3.5 text-amber-500 shrink-0 mt-0.5" />
                       <span className="leading-tight">{session.purpose}</span>
                     </div>
                   )}
                   {session.content && (
-                    <div className="flex items-start gap-2 text-stone-800 font-bold text-sm">
-                      <div className="bg-white p-0.5 rounded-md border-2 border-black shadow-[2px_2px_0_0_rgba(0,0,0,1)] shrink-0">
-                        <FileText className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-orange-500" />
-                      </div>
+                    <div className="flex items-start gap-1.5 text-stone-800 font-bold text-xs sm:text-sm">
+                      <FileText className="w-3.5 h-3.5 text-orange-500 shrink-0 mt-0.5" />
                       <span className="leading-tight">{session.content}</span>
                     </div>
                   )}
-                  <div className="flex items-start gap-2 text-stone-800 font-bold text-sm">
-                    <div className="bg-white p-0.5 rounded-md border-2 border-black shadow-[2px_2px_0_0_rgba(0,0,0,1)] shrink-0">
-                      <Users className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-orange-500" />
+                  {session.rules && (
+                    <div className="flex items-start gap-1.5 text-stone-800 font-bold text-xs sm:text-sm">
+                      <Info className="w-3.5 h-3.5 text-blue-500 shrink-0 mt-0.5" />
+                      <span className="leading-tight">{session.rules}</span>
                     </div>
-                    <div className="flex flex-col leading-tight gap-0.5">
-                      <span className="">
-                        理想人數：{formatPreference(session.player_count_preference)}
-                      </span>
-                      {session.dates_available.map(date => {
-                        const count = (session.availability_counts?.[date] || 0) + 1;
-                        return (
-                          <span key={date} className={clsx("block", count >= session.min_players ? "text-rose-600 font-black" : "text-amber-600 font-black")}>
-                            {format(parseISO(date.split('~')[0]), "M月d日", { locale: zhTW })} 
-                            {count >= session.max_players
-                              ? "已滿團"
-                              : count >= session.min_players 
-                              ? `已成團 (可再加 ${session.max_players - count} 人)` 
-                              : `欠 ${session.min_players - count} 人成團`}
-                          </span>
-                        );
-                      })}
+                  )}
+                  
+                  <div className="flex items-start gap-1.5 text-stone-800 font-bold text-xs sm:text-sm">
+                    <Users className="w-3.5 h-3.5 text-orange-500 shrink-0 mt-0.5" />
+                    <div className="flex flex-col leading-tight">
+                      <span>理想：{formatPreference(session.player_count_preference)}</span>
                     </div>
                   </div>
-                  <div className="flex items-start gap-2 text-stone-800 font-bold text-sm">
-                    <div className="bg-white p-0.5 rounded-md border-2 border-black shadow-[2px_2px_0_0_rgba(0,0,0,1)] mt-0.5 shrink-0">
-                      <Clock className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-teal-500" />
-                    </div>
-                    <div className="flex flex-col gap-0.5">
-                      {session.dates_available.slice(0, 3).map(date => {
-                        const [startStr, endStr] = date.split('~');
-                        return (
-                          <span key={date} className="bg-white px-1.5 py-0.5 rounded-md border-2 border-black shadow-[2px_2px_0_0_rgba(0,0,0,1)] inline-block w-fit leading-none">
-                            {format(parseISO(startStr), "M月d日 HHmm", { locale: zhTW })}
-                            {endStr ? `-${endStr.replace(':', '')}` : ''}
-                          </span>
-                        );
-                      })}
-                      {session.dates_available.length > 3 && (
-                        <span className="text-stone-500 text-xs font-black">...等 {session.dates_available.length} 個時段</span>
-                      )}
-                    </div>
+
+                  <div className="space-y-0.5 mt-1">
+                    {session.dates_available.map(date => {
+                      const count = (session.availability_counts?.[date] || 0) + 1;
+                      const [startStr] = date.split('~');
+                      return (
+                        <div key={date} className={clsx("text-[11px] sm:text-xs font-black leading-tight", count >= session.min_players ? "text-rose-600" : "text-amber-600")}>
+                          {format(parseISO(startStr), "M月d日", { locale: zhTW })} 
+                          {count >= session.max_players
+                            ? " 已滿團"
+                            : count >= session.min_players 
+                            ? ` 已成團 (可再加 ${session.max_players - count} 人)` 
+                            : ` 欠 ${session.min_players - count} 人成團`}
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
-
               </div>
               );
             })}

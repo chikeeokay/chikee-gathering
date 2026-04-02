@@ -91,6 +91,11 @@ export default function SessionDetailsPage() {
   const [isDeletingResponse, setIsDeletingResponse] = useState(false);
   const [deleteResponseError, setDeleteResponseError] = useState("");
 
+  // Delete Date Modal State
+  const [dateToDelete, setDateToDelete] = useState<string | null>(null);
+  const [isDeletingDate, setIsDeletingDate] = useState(false);
+  const [deleteDateError, setDeleteDateError] = useState("");
+
   useEffect(() => {
     if (!id) return;
 
@@ -299,6 +304,45 @@ export default function SessionDetailsPage() {
     }
   };
 
+  const handleDeleteDate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!dateToDelete || !session || !id || !user || (user.uid !== session.host_uid && !isAdmin)) return;
+
+    setIsDeletingDate(true);
+    setDeleteDateError("");
+
+    try {
+      const newDates = session.dates_available.filter(d => d !== dateToDelete);
+      
+      if (newDates.length === 0) {
+        setDeleteDateError("至少需要保留一個時段。如果要刪除整個約局，請使用「刪除整個約局」按鈕。");
+        setIsDeletingDate(false);
+        return;
+      }
+
+      // Update session
+      await updateDoc(doc(db, "sessions", id), {
+        dates_available: newDates
+      });
+
+      // Update all responses to remove this date
+      const responsesToUpdate = session.responses.filter(r => r.dates_available.includes(dateToDelete));
+      for (const r of responsesToUpdate) {
+        const newResponseDates = r.dates_available.filter(d => d !== dateToDelete);
+        await updateDoc(doc(db, "responses", r.id), {
+          dates_available: newResponseDates
+        });
+      }
+
+      setDateToDelete(null);
+    } catch (err: any) {
+      console.error("Delete date error:", err);
+      setDeleteDateError(err.message || "刪除時段失敗。");
+    } finally {
+      setIsDeletingDate(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex justify-center items-center h-64">
@@ -448,12 +492,21 @@ export default function SessionDetailsPage() {
               return (
                 <div key={date} className="brutal-card flex flex-col overflow-hidden p-0">
                   {/* Header */}
-                  <div className="bg-orange-100 border-b-4 border-black p-0.5 text-center">
+                  <div className="bg-orange-100 border-b-4 border-black p-0.5 text-center relative group pr-6">
                     <div className="font-black text-lg leading-tight">{format(parseISO(startStr), "M月d日", { locale: zhTW })}</div>
                     <div className="text-stone-700 font-bold text-base leading-tight">
                       {format(parseISO(startStr), "HHmm")}
                       {endStr ? `-${endStr.replace(':', '')}` : ''}
                     </div>
+                    {((user?.uid && user.uid === session.host_uid) || isAdmin) && (
+                      <button
+                        onClick={() => setDateToDelete(date)}
+                        className="absolute top-0.5 right-0.5 p-1 bg-stone-900 text-white border-2 border-black rounded shadow-[2px_2px_0_0_rgba(0,0,0,1)] hover:bg-rose-500 hover:text-black transition-all z-[70]"
+                        title="刪除此時段"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                      </button>
+                    )}
                   </div>
                   
                   {/* Players */}
@@ -560,15 +613,24 @@ export default function SessionDetailsPage() {
                       return (
                       <th
                         key={date}
-                        className="p-1 sm:p-1.5 font-black text-stone-900 text-xs sm:text-sm min-w-[70px] sm:min-w-[120px] border-r-4 border-black last:border-r-0"
+                        className="p-1 sm:p-1.5 font-black text-stone-900 text-xs sm:text-sm min-w-[70px] sm:min-w-[120px] border-r-4 border-black last:border-r-0 relative group"
                       >
-                        <div className="flex flex-col items-center sm:items-start">
+                        <div className="flex flex-col items-center sm:items-start pr-6">
                           <span className="whitespace-nowrap">{format(parseISO(startStr), "M月d日", { locale: zhTW })}</span>
                           <span className="text-stone-700 font-bold whitespace-nowrap">
                             {format(parseISO(startStr), "HHmm")}
                             {endStr ? `-${endStr.replace(':', '')}` : ''}
                           </span>
                         </div>
+                        {((user?.uid && user.uid === session.host_uid) || isAdmin) && (
+                          <button
+                            onClick={() => setDateToDelete(date)}
+                            className="absolute top-0.5 right-0.5 p-1 bg-stone-900 text-white border-2 border-black rounded shadow-[2px_2px_0_0_rgba(0,0,0,1)] hover:bg-rose-500 hover:text-black transition-all z-[70]"
+                            title="刪除此時段"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </button>
+                        )}
                       </th>
                     )})}
                   </tr>
@@ -1016,6 +1078,47 @@ export default function SessionDetailsPage() {
                   className="brutal-btn bg-rose-500 hover:bg-rose-600 text-white px-4 py-2"
                 >
                   {isDeletingResponse ? "刪除中..." : "確定刪除"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Date Modal */}
+      {dateToDelete && (
+        <div className="fixed inset-0 bg-stone-900/50 flex items-center justify-center z-[100] px-4 backdrop-blur-sm">
+          <div className="brutal-card p-6 w-full max-w-sm bg-white">
+            <h3 className="text-2xl font-black text-stone-900 mb-2">刪除時段</h3>
+            <p className="text-stone-700 font-bold mb-4">
+              確定要刪除 <span className="text-rose-600">{format(parseISO(dateToDelete.split('~')[0]), "M月d日 HH:mm")}</span> 這個時段嗎？
+            </p>
+            <p className="text-stone-500 text-sm mb-4">
+              注意：所有已報名此時段的參加者紀錄也會被移除此時段。
+            </p>
+            
+            <form onSubmit={handleDeleteDate} className="space-y-4">
+              {deleteDateError && (
+                <p className="text-rose-600 font-bold text-sm bg-rose-100 p-2 rounded-lg border-2 border-rose-500">{deleteDateError}</p>
+              )}
+
+              <div className="flex gap-2 justify-end pt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDateToDelete(null);
+                    setDeleteDateError("");
+                  }}
+                  className="px-4 py-2 font-bold text-stone-600 hover:text-stone-900 transition-colors"
+                >
+                  取消
+                </button>
+                <button
+                  type="submit"
+                  disabled={isDeletingDate}
+                  className="brutal-btn bg-rose-500 hover:bg-rose-600 text-white px-4 py-2"
+                >
+                  {isDeletingDate ? "刪除中..." : "確定刪除"}
                 </button>
               </div>
             </form>
