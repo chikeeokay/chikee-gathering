@@ -500,7 +500,7 @@ export default function SessionDetailsPage() {
                 <div key={date} className="brutal-card flex flex-col overflow-hidden p-0">
                   {/* Header */}
                   <div className="bg-orange-100 border-b-4 border-black p-0.5 text-center relative group pr-6">
-                    <div className="font-black text-lg leading-tight">{format(parseISO(startStr), "M月d日", { locale: zhTW })}</div>
+                    <div className="font-black text-lg leading-tight">{format(parseISO(startStr), "M月d日 (E)", { locale: zhTW })}</div>
                     <div className="text-stone-700 font-bold text-base leading-tight">
                       {format(parseISO(startStr), "HHmm")}
                       {endStr ? `-${endStr.replace(':', '')}` : ''}
@@ -623,7 +623,7 @@ export default function SessionDetailsPage() {
                         className="p-1 sm:p-1.5 font-black text-stone-900 text-xs sm:text-sm min-w-[70px] sm:min-w-[120px] border-r-4 border-black last:border-r-0 relative group"
                       >
                         <div className="flex flex-col items-center sm:items-start pr-6">
-                          <span className="whitespace-nowrap">{format(parseISO(startStr), "M月d日", { locale: zhTW })}</span>
+                          <span className="whitespace-nowrap">{format(parseISO(startStr), "M月d日 (E)", { locale: zhTW })}</span>
                           <span className="text-stone-700 font-bold whitespace-nowrap">
                             {format(parseISO(startStr), "HHmm")}
                             {endStr ? `-${endStr.replace(':', '')}` : ''}
@@ -968,7 +968,7 @@ export default function SessionDetailsPage() {
                             isAlreadyRegisteredByThisName ? "text-stone-400" : selectedDates.has(date) ? "text-black" : "text-stone-900",
                           )}
                         >
-                          {format(parseISO(startStr), "M月d日", { locale: zhTW })}
+                          {format(parseISO(startStr), "M月d日 (E)", { locale: zhTW })}
                           {isAlreadyRegisteredByThisName && (
                             <span className="ml-2 text-[10px] bg-stone-200 text-stone-600 px-1.5 py-0.5 rounded border-2 border-stone-300 align-middle">
                               你已報名此時段

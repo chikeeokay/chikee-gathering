@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useContext } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { Users, Calendar, Clock, ChevronRight, Package, Trash2, MapPin, Info, Target, FileText, MessageCircle, CircleDollarSign } from "lucide-react";
-import { format, parseISO } from "date-fns";
+import { format, parseISO, subMonths } from "date-fns";
 import { zhTW } from "date-fns/locale";
 import { clsx } from "clsx";
 import { Session, Response } from "../types";
@@ -20,6 +20,22 @@ const isExpired = (dateStr: string) => {
       endTime.setDate(endTime.getDate() + 1);
     }
     return endTime < new Date();
+  } catch (e) {
+    return false;
+  }
+};
+
+const isOlderThanTwoMonths = (dateStr: string) => {
+  try {
+    const [datePart, timePart] = dateStr.split('T');
+    const [start, end] = timePart.split('~');
+    const endTimeStr = end ? `${datePart}T${end}:00` : `${datePart}T${start}:00`;
+    const endTime = new Date(endTimeStr);
+    if (end && start && end < start) {
+      endTime.setDate(endTime.getDate() + 1);
+    }
+    const twoMonthsAgo = subMonths(new Date(), 2);
+    return endTime < twoMonthsAgo;
   } catch (e) {
     return false;
   }
@@ -124,33 +140,22 @@ export default function HomePage() {
     if (loading) return;
 
     sessions.forEach(async (session) => {
-      const validDates = session.dates_available.filter(date => !isExpired(date));
+      const allDatesOlderThanTwoMonths = session.dates_available.length > 0 && session.dates_available.every(date => isOlderThanTwoMonths(date));
       
-      if (validDates.length < session.dates_available.length) {
-        // Only host or admin can update/delete
+      if (allDatesOlderThanTwoMonths) {
+        // Only host or admin can delete to avoid multiple clients trying to delete simultaneously
         if (auth.currentUser && (session.host_uid === auth.currentUser.uid || isAdmin)) {
           try {
-            if (validDates.length === 0) {
-              await deleteDoc(doc(db, "sessions", session.id));
-            } else {
-              await updateDoc(doc(db, "sessions", session.id), {
-                dates_available: validDates
-              });
-            }
+            await deleteDoc(doc(db, "sessions", session.id));
           } catch (e) {
-            console.error("Failed to cleanup expired session", e);
+            console.error("Failed to cleanup old session", e);
           }
         }
       }
     });
   }, [sessions, loading, isAdmin]);
 
-  const activeSessions = sessions.map(session => ({
-    ...session,
-    dates_available: session.dates_available.filter(date => !isExpired(date))
-  })).filter(session => session.dates_available.length > 0);
-
-  const sessionsWithCounts = activeSessions.map(session => {
+  const sessionsWithCounts = sessions.map(session => {
     const sessionResponses = responses.filter(r => r.session_id === session.id);
     
     const availabilityCounts = session.dates_available.reduce((acc, date) => {
@@ -171,6 +176,8 @@ export default function HomePage() {
     const minPlayers = session.min_players || parseInt(session.player_count_preference?.split('-')[0]) || 3;
     const maxPlayers = session.max_players || parseInt(session.player_count_preference?.split('-')[1]) || 4;
 
+    const isFullyExpired = session.dates_available.every(date => isExpired(date));
+
     // +1 for the host
     return {
       ...session,
@@ -178,7 +185,8 @@ export default function HomePage() {
       max_players: maxPlayers,
       max_available_count: maxCount + 1,
       best_date: bestDate,
-      availability_counts: availabilityCounts
+      availability_counts: availabilityCounts,
+      isFullyExpired
     };
   });
 
@@ -204,6 +212,8 @@ export default function HomePage() {
 
     return true;
   }).sort((a, b) => {
+    if (a.isFullyExpired && !b.isFullyExpired) return 1;
+    if (!a.isFullyExpired && b.isFullyExpired) return -1;
     const earliestA = [...a.dates_available].sort()[0];
     const earliestB = [...b.dates_available].sort()[0];
     return earliestA.localeCompare(earliestB);
@@ -316,7 +326,7 @@ export default function HomePage() {
           <div className="grid gap-2 md:grid-cols-2 lg:grid-cols-3">
             {filteredSessions.map((session, index) => {
               const bgColors = ['bg-rose-100', 'bg-sky-100', 'bg-orange-100', 'bg-amber-100', 'bg-purple-100'];
-              const bgColor = bgColors[index % bgColors.length];
+              const bgColor = session.isFullyExpired ? 'bg-stone-200 opacity-70 grayscale' : bgColors[index % bgColors.length];
               
               return (
               <div
@@ -334,10 +344,16 @@ export default function HomePage() {
                     </p>
                   </div>
                   <div className="flex flex-col items-end gap-1.5 shrink-0">
-                    <div className="flex items-center justify-center bg-orange-400 text-black px-2.5 py-1.5 rounded-xl font-black hover:bg-orange-500 transition-colors border-2 border-black shadow-[3px_3px_0_0_rgba(0,0,0,1)] group text-xs sm:text-sm whitespace-nowrap">
-                      按這裡報名!
-                      <ChevronRight className="w-3.5 h-3.5 ml-0.5 group-hover:translate-x-1 transition-transform" />
-                    </div>
+                    {session.isFullyExpired ? (
+                      <div className="flex items-center justify-center bg-stone-500 text-white px-2.5 py-1.5 rounded-xl font-black border-2 border-black shadow-[3px_3px_0_0_rgba(0,0,0,1)] text-xs sm:text-sm whitespace-nowrap">
+                        已結束
+                      </div>
+                    ) : (
+                      <div className="flex items-center justify-center bg-orange-400 text-black px-2.5 py-1.5 rounded-xl font-black hover:bg-orange-500 transition-colors border-2 border-black shadow-[3px_3px_0_0_rgba(0,0,0,1)] group text-xs sm:text-sm whitespace-nowrap">
+                        按這裡報名!
+                        <ChevronRight className="w-3.5 h-3.5 ml-0.5 group-hover:translate-x-1 transition-transform" />
+                      </div>
+                    )}
                     {isAdmin && (
                       <button
                         onClick={(e) => handleDeleteClick(e, session.id)}
@@ -410,8 +426,8 @@ export default function HomePage() {
                       {session.dates_available.map(date => {
                         const count = (session.availability_counts?.[date] || 0) + 1;
                         return (
-                          <span key={date} className={clsx("block", count >= session.min_players ? "text-rose-600 font-black" : "text-amber-600 font-black")}>
-                            {format(parseISO(date.split('~')[0]), "M月d日", { locale: zhTW })} 
+                          <span key={date} className={clsx("block", session.isFullyExpired ? "text-stone-500 font-black" : count >= session.min_players ? "text-rose-600 font-black" : "text-amber-600 font-black")}>
+                            {format(parseISO(date.split('~')[0]), "M月d日 (E)", { locale: zhTW })} 
                             {" "}
                             {count >= session.max_players
                               ? "已滿團"
@@ -431,8 +447,8 @@ export default function HomePage() {
                       {session.dates_available.slice(0, 3).map(date => {
                         const [startStr, endStr] = date.split('~');
                         return (
-                          <span key={date} className="bg-white px-1.5 py-0.5 rounded-md border-2 border-black shadow-[2px_2px_0_0_rgba(0,0,0,1)] inline-block w-fit leading-none text-stone-900 font-bold">
-                            {format(parseISO(startStr), "M月d日 HHmm", { locale: zhTW })}
+                          <span key={date} className={clsx("px-1.5 py-0.5 rounded-md border-2 border-black shadow-[2px_2px_0_0_rgba(0,0,0,1)] inline-block w-fit leading-none font-bold", session.isFullyExpired ? "bg-stone-300 text-stone-600" : "bg-white text-stone-900")}>
+                            {format(parseISO(startStr), "M月d日 (E) HHmm", { locale: zhTW })}
                             {endStr ? `-${endStr.replace(':', '')}` : ''}
                           </span>
                         );
